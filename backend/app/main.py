@@ -9,7 +9,7 @@ import uvicorn
 from app.core.config import settings
 from app.core.db import init_db
 from app.core.seed import seed_data
-from app.routers import auth, patients, tests, appointments, reports, dashboard, referrals, expenses, audit, setup
+from app.routers import auth, patients, tests, appointments, reports, dashboard, referrals, expenses, audit, setup, superadmin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -42,6 +42,7 @@ app.include_router(referrals.router, prefix=settings.API_V1_STR)
 app.include_router(expenses.router, prefix=settings.API_V1_STR)
 app.include_router(audit.router, prefix=settings.API_V1_STR)
 app.include_router(setup.router, prefix=settings.API_V1_STR)
+app.include_router(superadmin.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def read_root():

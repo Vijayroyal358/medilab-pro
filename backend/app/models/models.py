@@ -36,7 +36,7 @@ class User(SQLModel, table=True):
     )
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    lab_id: int = Field(foreign_key="lab.id", index=True)
+    lab_id: Optional[int] = Field(default=None, foreign_key="lab.id", index=True)
     email: str = Field(index=True)
     hashed_password: str
     phone: Optional[str] = Field(default=None, index=True)

@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   Shield, Building2, ClipboardList, FileText, Mail, 
   Check, ChevronRight, Landmark, Upload, Link2, 
-  Save, Sparkles, Building, Phone, Globe, Star, ExternalLink
+  Save, Sparkles, Building, Phone, Globe, Star, ExternalLink, Users
 } from "lucide-react";
 import { getLabSetup, updateLabSetup, LabSetupData } from "../../../../services/data";
+import { apiFetch } from "../../../../services/api";
 
 const SUPABASE_URL = "https://tkswveavhhgpijpjrvls.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrc3d2ZWF2aGhncGlqcGpydmxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDQ4NjUsImV4cCI6MjA5ODM4MDg2NX0.tnfiGx0ujEpWyZ3k4zUwPU5ijY9JoXsLpEw8hz5apWk";
@@ -41,7 +42,8 @@ const SETUP_STEPS = [
   { id: "ratelist", label: "Ratelist", icon: ClipboardList, href: "/dashboard/setup/ratelist" },
   { id: "letterhead", label: "Letterhead", icon: FileText, href: "/dashboard/setup/letterhead" },
   { id: "review", label: "Google review", icon: Mail, href: "/dashboard/setup/review" },
-  { id: "panels", label: "Panels", icon: ClipboardList, href: "/dashboard/setup/panels" }
+  { id: "panels", label: "Panels", icon: ClipboardList, href: "/dashboard/setup/panels" },
+  { id: "staff", label: "Staff management", icon: Users, href: "/dashboard/setup/staff" }
 ];
 
 export default function SetupStepPage() {
@@ -68,6 +70,67 @@ export default function SetupStepPage() {
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  // Staff states and methods
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [staffForm, setStaffForm] = useState({ name: "", email: "", phone: "", role: "Receptionist" });
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("medilab_user");
+      if (stored) {
+        setUserProfile(JSON.parse(stored));
+      }
+    }
+  }, []);
+
+  const fetchStaff = async (labId: number) => {
+    try {
+      const data = await apiFetch<any[]>(`/superadmin/labs/${labId}/staff`);
+      setStaffList(data);
+    } catch (err: any) {
+      console.error("Failed to load staff list", err);
+    }
+  };
+
+  useEffect(() => {
+    if (step === "staff" && userProfile?.lab_id) {
+      fetchStaff(userProfile.lab_id);
+    }
+  }, [step, userProfile]);
+
+  const handleAddStaffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userProfile?.lab_id) return;
+    try {
+      await apiFetch(`/superadmin/labs/${userProfile.lab_id}/staff`, {
+        method: "POST",
+        body: JSON.stringify(staffForm)
+      });
+      triggerToast("Staff added successfully!");
+      setShowAddStaffModal(false);
+      setStaffForm({ name: "", email: "", phone: "", role: "Receptionist" });
+      fetchStaff(userProfile.lab_id);
+    } catch (err: any) {
+      triggerToast(err.message || "Failed to add staff member");
+    }
+  };
+
+  const handleToggleStaffActive = async (userId: number, currentActive: boolean) => {
+    if (!userProfile?.lab_id) return;
+    try {
+      await apiFetch(`/superadmin/labs/${userProfile.lab_id}/staff/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_active: !currentActive })
+      });
+      triggerToast("Staff status updated!");
+      fetchStaff(userProfile.lab_id);
+    } catch (err: any) {
+      triggerToast(err.message || "Failed to update staff status");
+    }
   };
 
   useEffect(() => {
@@ -506,6 +569,165 @@ export default function SetupStepPage() {
                 </div>
               </div>
             </div>
+          </div>
+        );
+
+      case "staff":
+        return (
+          <div className="space-y-6">
+            <div className="border-b border-slate-100 dark:border-darkBorders pb-4 flex justify-between items-center">
+              <div>
+                <h1 className="text-xl font-extrabold text-slate-800 dark:text-white uppercase tracking-tight">Staff Management</h1>
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-1.5">Manage access roles, logins and permissions for laboratory staff</p>
+              </div>
+              {["Lab Owner", "Lab Admin", "Software Admin"].includes(userProfile?.role) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddStaffModal(true)}
+                  className="px-4 py-2.5 bg-[#00A770] hover:bg-[#009060] text-white font-extrabold text-xs rounded-xl shadow-md uppercase tracking-wider transition-all"
+                >
+                  + Add Staff Member
+                </button>
+              )}
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-darkBorders overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-darkBorders text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100/50 dark:bg-slate-800/30">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Phone</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {staffList.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-100/20 dark:hover:bg-slate-800/20">
+                        <td className="p-4 font-bold text-slate-800 dark:text-white">{s.name}</td>
+                        <td className="p-4 text-slate-500 dark:text-slate-400">{s.email}</td>
+                        <td className="p-4 text-slate-500 dark:text-slate-400">{s.phone || "—"}</td>
+                        <td className="p-4">
+                          <span className="bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 font-semibold px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-sky-900">
+                            {s.role}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                            s.is_active 
+                              ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-[#00A770] border-emerald-100 dark:border-emerald-900" 
+                              : "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900"
+                          }`}>
+                            {s.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          {["Lab Owner", "Lab Admin", "Software Admin"].includes(userProfile?.role) && s.email !== userProfile?.email ? (
+                            <button
+                              onClick={() => handleToggleStaffActive(s.id, s.is_active)}
+                              className={`px-3 py-1 rounded-lg font-bold text-[10px] uppercase border transition-all ${
+                                s.is_active
+                                  ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 dark:text-red-400 dark:border-red-900/60"
+                                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 dark:text-[#00A770] dark:border-emerald-900/60"
+                              }`}
+                            >
+                              {s.is_active ? "Deactivate" : "Activate"}
+                            </button>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {staffList.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-slate-400 font-medium">No staff members configured.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Add Staff Modal */}
+            {showAddStaffModal && (
+              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-darkCard rounded-3xl border border-slate-200 dark:border-darkBorders max-w-md w-full p-6 shadow-2xl space-y-4">
+                  <div className="border-b border-slate-100 dark:border-darkBorders pb-3">
+                    <h2 className="text-base font-extrabold text-slate-800 dark:text-white uppercase tracking-tight">Add Lab Staff</h2>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-1">Create user accounts for your lab technicians or doctors</p>
+                  </div>
+                  <form onSubmit={handleAddStaffSubmit} className="space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Full Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={staffForm.name}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="e.g. Dr. Ravi Kumar"
+                          className="w-full px-3 py-2.5 text-xs border border-slate-200 dark:border-darkBorders rounded-xl focus:outline-none focus:ring-1 focus:ring-primary dark:bg-darkCard dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email Address *</label>
+                        <input
+                          type="email"
+                          required
+                          value={staffForm.email}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="you@domain.com"
+                          className="w-full px-3 py-2.5 text-xs border border-slate-200 dark:border-darkBorders rounded-xl focus:outline-none focus:ring-1 focus:ring-primary dark:bg-darkCard dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Phone Number</label>
+                        <input
+                          type="tel"
+                          value={staffForm.phone}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="e.g. +91 9876543210"
+                          className="w-full px-3 py-2.5 text-xs border border-slate-200 dark:border-darkBorders rounded-xl focus:outline-none focus:ring-1 focus:ring-primary dark:bg-darkCard dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Predefined Role *</label>
+                        <select
+                          value={staffForm.role}
+                          onChange={(e) => setStaffForm(prev => ({ ...prev, role: e.target.value }))}
+                          className="w-full px-3 py-2.5 text-xs border border-slate-200 dark:border-darkBorders rounded-xl focus:outline-none focus:ring-1 focus:ring-primary dark:bg-darkCard dark:text-white"
+                        >
+                          <option value="Lab Owner">Lab Owner</option>
+                          <option value="Lab Admin">Lab Admin</option>
+                          <option value="Receptionist">Receptionist</option>
+                          <option value="Technician">Technician</option>
+                          <option value="Doctor">Doctor</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex space-x-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddStaffModal(false)}
+                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all uppercase tracking-wider"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 bg-[#00A770] hover:bg-[#009060] text-white font-extrabold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider"
+                      >
+                        Add Member
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         );
 

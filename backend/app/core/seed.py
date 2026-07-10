@@ -6,10 +6,25 @@ from datetime import datetime, timedelta
 
 def seed_data():
     with Session(engine) as session:
+        # Ensure Software Admin exists (always, regardless of other data)
+        sa = session.exec(select(User).where(User.email == "superadmin@medilab.pro")).first()
+        if not sa:
+            session.add(User(
+                lab_id=None,
+                email="superadmin@medilab.pro",
+                hashed_password=get_password_hash("SuperAdmin@123"),
+                name="Software Admin",
+                role="Software Admin",
+                is_active=True,
+            ))
+            session.commit()
+            print("Software Admin account created: superadmin@medilab.pro / SuperAdmin@123")
+
         # Check if labs already exist
         existing_labs = session.exec(select(Lab)).all()
         if existing_labs:
             return  # Database is already seeded
+
             
         print("Seeding database with demo labs, users, referral doctors, and transactions...")
         

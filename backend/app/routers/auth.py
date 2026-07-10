@@ -40,9 +40,26 @@ def verify_slug(slug: str, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 def login(
     user_in: UserLogin,
-    lab_slug: str,  # Required to isolate tenancy during login
+    lab_slug: str = "",  # Optional for Software Admin
     db: Session = Depends(get_db)
 ):
+    # Software Admin: global login, no lab slug needed
+    if user_in.email == "superadmin@medilab.pro":
+        user = db.exec(select(User).where(User.email == user_in.email)).first()
+        if not user or not verify_password(user_in.password, user.hashed_password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        token_data = {"sub": str(user.id), "role": user.role, "lab_id": None}
+        access_token = create_access_token(token_data)
+        refresh_token = create_refresh_token(token_data)
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            name=user.name,
+            role=user.role,
+            lab_id=0,
+            lab_name="MediLabs Platform",
+        )
+
     # 1. Fetch lab by slug
     lab = get_lab_by_slug(db, lab_slug)
     if not lab:
