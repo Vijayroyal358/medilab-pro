@@ -101,7 +101,7 @@ def create_lab(
         slug=slug,
         address=payload.address,
         phone=payload.phone,
-        email=payload.email,
+        email=payload.email.lower(),
         is_active=True,
     )
     db.add(lab)
@@ -193,7 +193,7 @@ def add_staff(
     temp_password = payload.name.split()[0] + "@Staff1"
     user = User(
         lab_id=lab_id,
-        email=payload.email,
+        email=payload.email.lower(),
         hashed_password=get_password_hash(temp_password),
         phone=payload.phone,
         name=payload.name,

@@ -43,7 +43,7 @@ def login(
     db: Session = Depends(get_db)
 ):
     # Look up user by email globally — lab is derived from user record
-    user = db.exec(select(User).where(User.email == user_in.email)).first()
+    user = db.exec(select(User).where(User.email == user_in.email.lower())).first()
 
     if not user or not verify_password(user_in.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
