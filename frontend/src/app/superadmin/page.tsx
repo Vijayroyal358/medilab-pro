@@ -25,6 +25,7 @@ export default function SuperAdminDashboard() {
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Modals
   const [showCreateLab, setShowCreateLab] = useState(false);
@@ -144,6 +145,49 @@ export default function SuperAdminDashboard() {
       method: "PATCH", headers: hdr(token!), body: JSON.stringify({ is_active: !staff.is_active }),
     });
     fetchData(token!);
+  };
+
+  const deleteLab = async (lab: any) => {
+    if (!confirm(`Are you sure you want to completely delete "${lab.name}" and all of its associated data (patients, staff, tests, reports)? This action CANNOT be undone.`)) return;
+    
+    try {
+      const res = await fetch(`${API}/superadmin/labs/${lab.id}`, {
+        method: "DELETE",
+        headers: hdr(token!),
+      });
+      if (res.ok) {
+        alert("Laboratory and all associated data deleted successfully.");
+        fetchLabs();
+        setOpenDropdown(null);
+      } else {
+        const d = await res.json();
+        alert(d.detail || "Failed to delete laboratory.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting the laboratory.");
+    }
+  };
+
+  const deleteStaff = async (staff: any) => {
+    if (!confirm(`Are you sure you want to delete staff member "${staff.name}"?`)) return;
+    
+    try {
+      const res = await fetch(`${API}/superadmin/labs/${staff.lab_id}/staff/${staff.id}`, {
+        method: "DELETE",
+        headers: hdr(token!),
+      });
+      if (res.ok) {
+        alert("Staff member deleted successfully.");
+        fetchData(token!);
+      } else {
+        const d = await res.json();
+        alert(d.detail || "Failed to delete staff member.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting the staff member.");
+    }
   };
 
   const logout = () => { localStorage.clear(); router.push("/auth/login"); };
