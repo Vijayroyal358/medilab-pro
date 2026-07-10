@@ -130,6 +130,25 @@ def create_lab(
         "temp_password": temp_password,
     }
 
+@router.patch("/labs/{lab_id}")
+def update_lab(
+    lab_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_software_admin)
+):
+    """Update lab fields like is_active or subscription_plan."""
+    lab = db.exec(select(Lab).where(Lab.id == lab_id)).first()
+    if not lab:
+        raise HTTPException(status_code=404, detail="Lab not found")
+    if "is_active" in payload:
+        lab.is_active = payload["is_active"]
+    if "subscription_plan" in payload and payload["subscription_plan"] in ["Trial", "Basic", "Professional", "Enterprise"]:
+        lab.subscription_plan = payload["subscription_plan"]
+    db.add(lab)
+    db.commit()
+    return {"message": "Lab updated"}
+
 @router.get("/labs", response_model=List[LabSummary])
 def list_labs(
     db: Session = Depends(get_db),
