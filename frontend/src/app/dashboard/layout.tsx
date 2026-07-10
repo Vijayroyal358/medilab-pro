@@ -11,7 +11,7 @@ import {
   Briefcase, FolderOpen, Stethoscope, Cog, History,
   ShieldCheck, Landmark, HardDrive, Shield,
   Microscope, PlusCircle, CircleDollarSign, ClipboardCopy, Check, Mail,
-  Bell, Crown, ClipboardList, FileText, Package, Building2, Layers
+  Bell, Crown, ClipboardList, FileText, Package, Building2, Layers, KeyRound
 } from "lucide-react";
 import { getDashboardStats } from "../../services/data";
 import { DashboardStats } from "../../types/index";
@@ -31,6 +31,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [statsExpanded, setStatsExpanded] = useState(true);
   const [newNavigationEnabled, setNewNavigationEnabled] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
+  const [changePwForm, setChangePwForm] = useState({ old: "", new_: "", confirm: "" });
+  const [changePwMsg, setChangePwMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [changePwLoading, setChangePwLoading] = useState(false);
 
   // Load stats for profile dropdown
   useEffect(() => {
@@ -63,6 +67,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [profileOpen, setupOpen]);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (changePwForm.new_ !== changePwForm.confirm) {
+      setChangePwMsg({ text: "New passwords do not match", ok: false });
+      return;
+    }
+    if (changePwForm.new_.length < 6) {
+      setChangePwMsg({ text: "Password must be at least 6 characters", ok: false });
+      return;
+    }
+    setChangePwLoading(true);
+    try {
+      const token = localStorage.getItem("medilab_access_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://medilab-pro.onrender.com"}/auth/me/password`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ old_password: changePwForm.old, new_password: changePwForm.new_ })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setChangePwMsg({ text: "Password updated successfully!", ok: true });
+        setChangePwForm({ old: "", new_: "", confirm: "" });
+      } else {
+        setChangePwMsg({ text: data.detail || "Failed to update password", ok: false });
+      }
+    } catch {
+      setChangePwMsg({ text: "Network error. Please try again.", ok: false });
+    } finally {
+      setChangePwLoading(false);
+    }
+  };
 
   const handleCopyLabId = () => {
     const idText = user.lab_id ? String(43948720 + user.lab_id) : "43948729";
@@ -444,6 +480,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
+            <button
+                onClick={logout}
+                title="Logout"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-darkBorders text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 dark:hover:text-red-400 hover:border-red-100 dark:hover:border-red-900 text-xs font-bold transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+
             <div className="relative profile-dropdown-container">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
@@ -519,11 +564,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {/* Menu Options */}
                   <div className="py-1 text-slate-600 dark:text-slate-350 text-xs">
                     <button 
-                      onClick={() => alert("My account is coming soon!")}
+                      onClick={() => { setProfileOpen(false); setChangePwOpen(true); setChangePwMsg(null); }}
                       className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center space-x-2.5 font-medium transition-colors text-slate-600 dark:text-slate-300"
                     >
-                      <User className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                      <span>My account</span>
+                      <KeyRound className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                      <span>Change Password</span>
                     </button>
 
                     <button 
@@ -587,6 +632,62 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
         </header>
+
+        {/* Change Password Modal */}
+        {changePwOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-darkCard rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-darkBorders">
+              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-darkBorders">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex items-center justify-center">
+                    <KeyRound className="w-5 h-5 text-[#00A770]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800 dark:text-white">Change Password</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Update your account password</p>
+                  </div>
+                </div>
+                <button onClick={() => { setChangePwOpen(false); setChangePwMsg(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+                {changePwMsg && (
+                  <div className={`px-4 py-3 rounded-xl text-sm font-semibold border ${
+                    changePwMsg.ok
+                      ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900"
+                      : "bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900"
+                  }`}>{changePwMsg.text}</div>
+                )}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Current Password</label>
+                  <input type="password" required value={changePwForm.old} onChange={e => setChangePwForm(p => ({ ...p, old: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-darkBorders rounded-xl text-sm focus:outline-none focus:border-[#00A770] dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">New Password</label>
+                  <input type="password" required value={changePwForm.new_} onChange={e => setChangePwForm(p => ({ ...p, new_: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-darkBorders rounded-xl text-sm focus:outline-none focus:border-[#00A770] dark:text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Confirm New Password</label>
+                  <input type="password" required value={changePwForm.confirm} onChange={e => setChangePwForm(p => ({ ...p, confirm: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-darkBorders rounded-xl text-sm focus:outline-none focus:border-[#00A770] dark:text-white" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => { setChangePwOpen(false); setChangePwMsg(null); }}
+                    className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-darkBorders rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={changePwLoading}
+                    className="flex-1 px-4 py-2.5 bg-[#00A770] hover:bg-[#009060] disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-colors">
+                    {changePwLoading ? "Updating..." : "Update Password"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Page contents */}
         <main className="flex-grow overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-slate-900/50">
