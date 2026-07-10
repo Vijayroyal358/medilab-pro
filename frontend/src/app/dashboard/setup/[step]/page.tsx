@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   Shield, Building2, ClipboardList, FileText, Mail, 
   Check, ChevronRight, Landmark, Upload, Link2, 
-  Save, Sparkles, Building, Phone, Globe, Star, ExternalLink, Users
+  Save, Sparkles, Building, Phone, Globe, Star, ExternalLink, Users, Trash2
 } from "lucide-react";
 import { getLabSetup, updateLabSetup, LabSetupData } from "../../../../services/data";
 import { apiFetch } from "../../../../services/api";
@@ -77,6 +77,7 @@ export default function SetupStepPage() {
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [staffForm, setStaffForm] = useState({ name: "", email: "", phone: "", role: "Receptionist" });
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<any | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -130,6 +131,20 @@ export default function SetupStepPage() {
       fetchStaff(userProfile.lab_id);
     } catch (err: any) {
       triggerToast(err.message || "Failed to update staff status");
+    }
+  };
+
+  const handleDeleteStaff = async (userId: number) => {
+    if (!userProfile?.lab_id) return;
+    try {
+      await apiFetch(`/superadmin/labs/${userProfile.lab_id}/staff/${userId}`, {
+        method: "DELETE"
+      });
+      triggerToast("Staff member deleted successfully!");
+      fetchStaff(userProfile.lab_id);
+      setDeleteConfirmUser(null);
+    } catch (err: any) {
+      triggerToast(err.message || "Failed to delete staff member");
     }
   };
 
@@ -626,16 +641,25 @@ export default function SetupStepPage() {
                         </td>
                         <td className="p-4 text-right">
                           {["Lab Owner", "Lab Admin", "Software Admin"].includes(userProfile?.role) && s.email !== userProfile?.email ? (
-                            <button
-                              onClick={() => handleToggleStaffActive(s.id, s.is_active)}
-                              className={`px-3 py-1 rounded-lg font-bold text-[10px] uppercase border transition-all ${
-                                s.is_active
-                                  ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 dark:text-red-400 dark:border-red-900/60"
-                                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 dark:text-[#00A770] dark:border-emerald-900/60"
-                              }`}
-                            >
-                              {s.is_active ? "Deactivate" : "Activate"}
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleToggleStaffActive(s.id, s.is_active)}
+                                className={`px-3 py-1 rounded-lg font-bold text-[10px] uppercase border transition-all ${
+                                  s.is_active
+                                    ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 dark:text-red-400 dark:border-red-900/60"
+                                    : "bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 dark:text-[#00A770] dark:border-emerald-900/60"
+                                }`}
+                              >
+                                {s.is_active ? "Deactivate" : "Activate"}
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmUser(s)}
+                                className="p-1.5 text-red-500 hover:text-red-750 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/40"
+                                title="Delete Staff"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}
@@ -793,6 +817,36 @@ export default function SetupStepPage() {
       <div className="flex-grow p-8 bg-white dark:bg-darkCard overflow-y-auto">
         {renderContent()}
       </div>
+
+      {deleteConfirmUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-darkCard rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-darkBorders">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-950/30 rounded-2xl flex items-center justify-center mb-4">
+                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-2">Delete "{deleteConfirmUser.name}"?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">This will permanently remove this staff member from the system.</p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmUser(null)}
+                className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-darkBorders rounded-xl text-sm font-bold text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteStaff(deleteConfirmUser.id)}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

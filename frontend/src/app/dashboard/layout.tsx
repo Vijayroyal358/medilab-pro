@@ -259,6 +259,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-[10px] font-bold text-[#A3B899] uppercase tracking-wider px-3">Other</span>
           </div>
 
+          {/* Staff Management (Lab Owner / Lab Admin only) */}
+          {["Lab Owner", "Lab Admin"].includes(user.role) && (
+            <Link
+              href="/dashboard/setup/staff"
+              className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all ${
+                pathname === "/dashboard/setup/staff" 
+                  ? "bg-[#00A770] text-white font-bold shadow-md" 
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <Users className="h-4.5 w-4.5" />
+              <span>Staff Management</span>
+            </Link>
+          )}
+
           {/* Audit Logs */}
           <Link
             href="/dashboard/audit"
@@ -414,6 +429,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <ClipboardList className={`h-4 w-4 ${pathname === "/dashboard/setup/panels" ? "text-[#00A770]" : "text-slate-400"}`} />
                       <span>Panels</span>
                     </Link>
+                    {["Lab Owner", "Lab Admin"].includes(user.role) && (
+                      <Link 
+                        href="/dashboard/setup/staff" 
+                        onClick={() => setSetupOpen(false)}
+                        className={`flex items-center space-x-2.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${pathname === "/dashboard/setup/staff" ? "text-[#00A770] font-extrabold" : ""}`}
+                      >
+                        <Users className={`h-4 w-4 ${pathname === "/dashboard/setup/staff" ? "text-[#00A770]" : "text-slate-400"}`} />
+                        <span>Staff management</span>
+                      </Link>
+                    )}
                   </div>
                 </div>
               )}
