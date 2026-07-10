@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from sqlmodel import Session, select, text
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
@@ -353,14 +353,14 @@ def delete_lab(
         raise HTTPException(status_code=404, detail="Lab not found")
     
     # Cascade delete associated records manually in order to satisfy FK constraints
-    db.exec("DELETE FROM report WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM appointment WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM test WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM patient WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM referral_doctor WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM expense WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM audit_log WHERE lab_id = :lab_id", {"lab_id": lab_id})
-    db.exec("DELETE FROM \"user\" WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.execute(text("DELETE FROM report WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM appointment WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM test WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM patient WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM referral_doctor WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM expense WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM audit_log WHERE lab_id = :lab_id"), {"lab_id": lab_id})
+    db.execute(text("DELETE FROM \"user\" WHERE lab_id = :lab_id"), {"lab_id": lab_id})
     
     db.delete(lab)
     db.commit()
@@ -381,9 +381,9 @@ def delete_staff(
         raise HTTPException(status_code=404, detail="Staff member not found")
         
     # Null out nullable user references in other tables
-    db.exec("UPDATE report SET technician_id = NULL WHERE technician_id = :user_id", {"user_id": user_id})
-    db.exec("UPDATE report SET doctor_id = NULL WHERE doctor_id = :user_id", {"user_id": user_id})
-    db.exec("UPDATE audit_log SET user_id = NULL WHERE user_id = :user_id", {"user_id": user_id})
+    db.execute(text("UPDATE report SET technician_id = NULL WHERE technician_id = :user_id"), {"user_id": user_id})
+    db.execute(text("UPDATE report SET doctor_id = NULL WHERE doctor_id = :user_id"), {"user_id": user_id})
+    db.execute(text("UPDATE audit_log SET user_id = NULL WHERE user_id = :user_id"), {"user_id": user_id})
     
     db.delete(user)
     db.commit()
