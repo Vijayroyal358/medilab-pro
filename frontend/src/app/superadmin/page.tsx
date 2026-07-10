@@ -322,13 +322,61 @@ export default function SuperAdminDashboard() {
                   </div>
                 </div>
               </div>
-
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+            )}
+            
+            {activeTab === "settings" && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm max-w-2xl">
+                <h2 className="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-slate-400" />
+                  Account Settings
+                </h2>
+                
+                <div className="border-t border-slate-100 pt-6">
+                  <h3 className="text-sm font-bold text-slate-700 mb-4">Change Password</h3>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const old_password = (form.elements.namedItem('old_password') as HTMLInputElement).value;
+                    const new_password = (form.elements.namedItem('new_password') as HTMLInputElement).value;
+                    
+                    try {
+                      const res = await fetch(`${API}/auth/me/password`, {
+                        method: 'PATCH',
+                        headers: headers(token!),
+                        body: JSON.stringify({ old_password, new_password })
+                      });
+                      if (res.ok) {
+                        alert("Password updated successfully!");
+                        form.reset();
+                      } else {
+                        const data = await res.json();
+                        alert(data.detail || "Failed to update password");
+                      }
+                    } catch (err) {
+                      alert("An error occurred");
+                    }
+                  }} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Current Password</label>
+                      <input name="old_password" type="password" required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00A770]/20 focus:border-[#00A770]" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">New Password</label>
+                      <input name="new_password" type="password" required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00A770]/20 focus:border-[#00A770]" />
+                    </div>
+                    <button type="submit" className="px-6 py-2.5 bg-[#00A770] hover:bg-[#009060] text-white font-extrabold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider mt-2">
+                      Update Password
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
+  </div>
+);
 }
 
 // Helper Components

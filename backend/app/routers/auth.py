@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from jose import jwt, JWTError
 
 from app.core.config import settings
-from app.core.db import get_db
+from app.routers.deps import get_db, get_current_user
 from app.core.security import (
     verify_password,
     create_access_token,
@@ -44,10 +44,12 @@ def login(
     db: Session = Depends(get_db)
 ):
     # Software Admin: global login, no lab slug needed
-    if user_in.email == "superadmin@medilab.pro":
+    if not lab_slug:
         user = db.exec(select(User).where(User.email == user_in.email)).first()
         if not user or not verify_password(user_in.password, user.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        if user.role != "Software Admin":
+            raise HTTPException(status_code=403, detail="Lab slug is required for non-admin users")
         access_token = create_access_token(user.id, user.role, None)
         refresh_token = create_refresh_token(user.id, user.role, None)
         return TokenResponse(
