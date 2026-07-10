@@ -161,10 +161,17 @@ export default function SuperAdminDashboard() {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#F8F9FA] text-slate-800 font-sans">
+    <div className="flex min-h-screen bg-[#F8F9FA] text-slate-800 font-sans relative">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-[#00A770] rounded-xl flex items-center justify-center text-white shrink-0">
             <FlaskConical className="w-6 h-6" />
@@ -175,35 +182,42 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
         <nav className="flex-1 px-4 space-y-1">
-          <SidebarItem icon={<LayoutDashboard size={18} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
-          <SidebarItem icon={<FlaskConical size={18} />} label="Laboratories" active={activeTab === "labs"} onClick={() => setActiveTab("labs")} />
-          <SidebarItem icon={<Users size={18} />} label="Staff Management" active={activeTab === "staff"} onClick={() => setActiveTab("staff")} />
-          <SidebarItem icon={<CreditCard size={18} />} label="Plans & Billing" active={activeTab === "billing"} onClick={() => setActiveTab("billing")} />
-          <SidebarItem icon={<History size={18} />} label="Activity Log" active={activeTab === "activity"} onClick={() => setActiveTab("activity")} />
+          <SidebarItem icon={<LayoutDashboard size={18} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); setSidebarOpen(false); }} />
+          <SidebarItem icon={<FlaskConical size={18} />} label="Laboratories" active={activeTab === "labs"} onClick={() => { setActiveTab("labs"); setSidebarOpen(false); }} />
+          <SidebarItem icon={<Users size={18} />} label="Staff Management" active={activeTab === "staff"} onClick={() => { setActiveTab("staff"); setSidebarOpen(false); }} />
+          <SidebarItem icon={<CreditCard size={18} />} label="Plans & Billing" active={activeTab === "billing"} onClick={() => { setActiveTab("billing"); setSidebarOpen(false); }} />
+          <SidebarItem icon={<History size={18} />} label="Activity Log" active={activeTab === "activity"} onClick={() => { setActiveTab("activity"); setSidebarOpen(false); }} />
         </nav>
         <div className="p-4 mt-auto">
-          <SidebarItem icon={<Settings size={18} />} label="Settings" active={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+          <SidebarItem icon={<Settings size={18} />} label="Settings" active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }} />
         </div>
       </aside>
 
       {/* Main */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-800">Welcome back, {userProfile?.name?.split(" ")[0] || "Admin"} 👋</h1>
-            <p className="text-sm text-slate-500 mt-1">Here's what's happening across your network today.</p>
+        <header className="h-auto min-h-[5rem] py-4 md:py-0 md:h-20 bg-white border-b border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between px-8 gap-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg md:hidden">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+                Welcome back, {userProfile?.name?.split(" ")[0] || "Admin"} 👋
+              </h1>
+              <p className="text-xs md:text-sm text-slate-500 mt-0.5">Here's what's happening across your network today.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between w-full md:w-auto gap-6">
             <button className="relative p-2 text-slate-400 hover:text-slate-600">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
             </button>
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer" onClick={logout}>
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer text-left flex-shrink-0" onClick={logout}>
               <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
                 <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.name || "Admin")}&background=0D8ABC&color=fff`} alt="Avatar" className="w-full h-full object-cover" />
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <div className="text-sm font-bold text-slate-800 leading-tight">{userProfile?.name || "Admin"}</div>
                 <div className="text-xs text-slate-500">{userProfile?.role || "Super Admin"}</div>
               </div>
@@ -222,7 +236,7 @@ export default function SuperAdminDashboard() {
               {/* ── DASHBOARD ── */}
               {activeTab === "dashboard" && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <MetricCard icon={<Building2 className="w-5 h-5 text-emerald-600" />} iconBg="bg-emerald-100" label="Total Laboratories" value={stats.total_laboratories} subtext="All labs in network" />
                     <MetricCard icon={<Users className="w-5 h-5 text-purple-600" />} iconBg="bg-purple-100" label="Total Staff" value={stats.total_staff} subtext="Across all laboratories" />
                     <MetricCard icon={<FlaskConical className="w-5 h-5 text-blue-600" />} iconBg="bg-blue-100" label="Total Tests" value={stats.total_tests.toLocaleString()} subtext="Total tests created" />
@@ -237,7 +251,7 @@ export default function SuperAdminDashboard() {
                         <h2 className="text-base font-extrabold text-slate-800">Laboratories Overview</h2>
                         <button onClick={() => setActiveTab("labs")} className="text-xs font-bold text-[#00A770] flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></button>
                       </div>
-                      <LabTable labs={labs.slice(0, 5)} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} />
+                      <LabTable labs={labs.slice(0, 5)} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
                     </div>
                     {/* Staff preview */}
                     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
@@ -245,7 +259,7 @@ export default function SuperAdminDashboard() {
                         <h2 className="text-base font-extrabold text-slate-800">Staff Directory</h2>
                         <button onClick={() => setActiveTab("staff")} className="text-xs font-bold text-[#00A770] flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></button>
                       </div>
-                      <StaffTable staff={recentStaff.slice(0, 5)} onToggle={toggleStaffActive} />
+                      <StaffTable staff={recentStaff.slice(0, 5)} onToggle={toggleStaffActive} onDelete={deleteStaff} />
                     </div>
                   </div>
 
@@ -283,14 +297,14 @@ export default function SuperAdminDashboard() {
               {/* ── LABORATORIES TAB ── */}
               {activeTab === "labs" && (
                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center gap-4">
+                  <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-lg font-extrabold text-slate-800">All Laboratories <span className="text-slate-400 font-normal text-sm">({labs.length})</span></h2>
-                    <div className="flex items-center gap-3 ml-auto">
-                      <div className="relative">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input value={labSearch} onChange={e => setLabSearch(e.target.value)} placeholder="Search labs..." className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#00A770] w-56" />
+                        <input value={labSearch} onChange={e => setLabSearch(e.target.value)} placeholder="Search labs..." className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#00A770] w-full sm:w-56" />
                       </div>
-                      <button onClick={() => { setShowCreateLab(true); setFormMsg(null); }} className="flex items-center gap-2 bg-[#00A770] hover:bg-[#009060] text-white font-bold text-sm px-4 py-2 rounded-xl transition-all">
+                      <button onClick={() => { setShowCreateLab(true); setFormMsg(null); }} className="flex items-center justify-center gap-2 bg-[#00A770] hover:bg-[#009060] text-white font-bold text-sm px-4 py-2 rounded-xl transition-all">
                         <Plus className="w-4 h-4" /> New Lab
                       </button>
                     </div>
@@ -302,7 +316,7 @@ export default function SuperAdminDashboard() {
                       <p className="text-sm mt-1">Create your first lab using the button above.</p>
                     </div>
                   ) : (
-                    <LabTable labs={filteredLabs} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} />
+                    <LabTable labs={filteredLabs} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
                   )}
                 </div>
               )}
@@ -310,14 +324,14 @@ export default function SuperAdminDashboard() {
               {/* ── STAFF MANAGEMENT TAB ── */}
               {activeTab === "staff" && (
                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center gap-4">
+                  <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-lg font-extrabold text-slate-800">Staff Management <span className="text-slate-400 font-normal text-sm">({allStaff.length})</span></h2>
-                    <div className="flex items-center gap-3 ml-auto">
-                      <div className="relative">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input value={staffSearch} onChange={e => setStaffSearch(e.target.value)} placeholder="Search staff..." className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#00A770] w-56" />
+                        <input value={staffSearch} onChange={e => setStaffSearch(e.target.value)} placeholder="Search staff..." className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#00A770] w-full sm:w-56" />
                       </div>
-                      <button onClick={() => { setShowAddStaff(true); setFormMsg(null); }} className="flex items-center gap-2 bg-[#00A770] hover:bg-[#009060] text-white font-bold text-sm px-4 py-2 rounded-xl transition-all">
+                      <button onClick={() => { setShowAddStaff(true); setFormMsg(null); }} className="flex items-center justify-center gap-2 bg-[#00A770] hover:bg-[#009060] text-white font-bold text-sm px-4 py-2 rounded-xl transition-all">
                         <Plus className="w-4 h-4" /> Add Staff
                       </button>
                     </div>
@@ -328,7 +342,7 @@ export default function SuperAdminDashboard() {
                       <p className="font-semibold">No staff members found</p>
                     </div>
                   ) : (
-                    <StaffTable staff={filteredStaff} onToggle={toggleStaffActive} />
+                    <StaffTable staff={filteredStaff} onToggle={toggleStaffActive} onDelete={deleteStaff} />
                   )}
                 </div>
               )}
@@ -519,8 +533,7 @@ export default function SuperAdminDashboard() {
 
 // ── Shared Table Components ────────────────────────────────────────────────────
 
-function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, onPlan, plans }: any) {
-  const [planMenu, setPlanMenu] = useState<number | null>(null);
+function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, onPlan, plans, onDelete }: any) {
   return (
     <div className="overflow-x-auto" ref={dropdownRef}>
       <table className="w-full text-left text-sm">
@@ -554,39 +567,35 @@ function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, 
               <td className="px-6 py-4 text-center"><StatusBadge active={lab.is_active} /></td>
               <td className="px-6 py-4 text-center text-xs font-semibold text-slate-600">{lab.subscription_plan}</td>
               <td className="px-6 py-4 text-right">
-                <div className="relative inline-block">
+                <div className="relative inline-block text-left">
                   <button
-                    onClick={() => { setOpenDropdown(openDropdown === lab.id ? null : lab.id); setPlanMenu(null); }}
+                    onClick={() => { setOpenDropdown(openDropdown === lab.id ? null : lab.id); }}
                     className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                   {openDropdown === lab.id && (
-                    <div className="absolute right-0 top-8 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-[160px] py-1">
+                    <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-50 min-w-[180px] py-1 text-slate-700">
                       <button
                         onClick={() => onToggle(lab)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
                       >
                         {lab.is_active ? <XCircle className="w-4 h-4 text-red-500" /> : <CheckCircle className="w-4 h-4 text-emerald-500" />}
                         {lab.is_active ? "Deactivate" : "Activate"}
                       </button>
-                      <div className="relative">
-                        <button
-                          onClick={() => setPlanMenu(planMenu === lab.id ? null : lab.id)}
-                          className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                        >
-                          <CreditCard className="w-4 h-4 text-blue-500" /> Change Plan
+                      <button
+                        onClick={() => onDelete(lab)}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-b border-slate-100 pb-2"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete Lab
+                      </button>
+                      <div className="px-4 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider pt-2">Change Plan</div>
+                      {plans.map((p: string) => (
+                        <button key={p} onClick={() => onPlan(lab, p)} className={`w-full px-4 py-1.5 text-left text-xs hover:bg-slate-50 flex items-center justify-between ${lab.subscription_plan === p ? "text-[#00A770] font-bold" : "text-slate-600"}`}>
+                          <span>{p} Plan</span>
+                          {lab.subscription_plan === p && <span className="w-1.5 h-1.5 rounded-full bg-[#00A770]" />}
                         </button>
-                        {planMenu === lab.id && (
-                          <div className="absolute right-full top-0 mr-1 bg-white border border-slate-200 rounded-xl shadow-lg z-30 min-w-[140px] py-1">
-                            {plans.map((p: string) => (
-                              <button key={p} onClick={() => { onPlan(lab, p); setPlanMenu(null); }} className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-50 ${lab.subscription_plan === p ? "text-[#00A770] font-bold" : "text-slate-700"}`}>
-                                {p}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -599,7 +608,7 @@ function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, 
   );
 }
 
-function StaffTable({ staff, onToggle }: { staff: any[]; onToggle: (s: any) => void }) {
+function StaffTable({ staff, onToggle, onDelete }: { staff: any[]; onToggle: (s: any) => void; onDelete: (s: any) => void }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
@@ -609,7 +618,7 @@ function StaffTable({ staff, onToggle }: { staff: any[]; onToggle: (s: any) => v
             <th className="px-6 py-3">Role</th>
             <th className="px-6 py-3">Laboratory</th>
             <th className="px-6 py-3 text-center">Status</th>
-            <th className="px-6 py-3 text-center">Action</th>
+            <th className="px-6 py-3 text-right">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
@@ -629,13 +638,22 @@ function StaffTable({ staff, onToggle }: { staff: any[]; onToggle: (s: any) => v
               <td className="px-6 py-4 text-xs font-semibold text-slate-600">{s.role}</td>
               <td className="px-6 py-4 text-xs font-medium text-slate-600">{s.lab_name}</td>
               <td className="px-6 py-4 text-center"><StatusBadge active={s.is_active} /></td>
-              <td className="px-6 py-4 text-center">
-                <button
-                  onClick={() => onToggle(s)}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all border ${s.is_active ? "text-red-600 bg-red-50 border-red-100 hover:bg-red-100" : "text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100"}`}
-                >
-                  {s.is_active ? "Deactivate" : "Activate"}
-                </button>
+              <td className="px-6 py-4 text-right">
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => onToggle(s)}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all border ${s.is_active ? "text-red-600 bg-red-50 border-red-100 hover:bg-red-100" : "text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100"}`}
+                  >
+                    {s.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                  <button
+                    onClick={() => onDelete(s)}
+                    className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                    title="Delete Staff"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

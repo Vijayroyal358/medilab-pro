@@ -320,3 +320,52 @@ def get_recent_activity(
     # Sort descending by timestamp and return top 5
     activities.sort(key=lambda x: x["timestamp"], reverse=True)
     return activities[:5]
+
+@router.delete("/labs/{lab_id}")
+def delete_lab(
+    lab_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_software_admin)
+):
+    """Completely delete a lab and all associated data."""
+    lab = db.get(Lab, lab_id)
+    if not lab:
+        raise HTTPException(status_code=404, detail="Lab not found")
+    
+    # Cascade delete associated records manually in order to satisfy FK constraints
+    db.exec("DELETE FROM report WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM appointment WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM test WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM patient WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM referral_doctor WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM expense WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM audit_log WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    db.exec("DELETE FROM \"user\" WHERE lab_id = :lab_id", {"lab_id": lab_id})
+    
+    db.delete(lab)
+    db.commit()
+    return {"message": "Laboratory and all associated data deleted successfully"}
+
+@router.delete("/labs/{lab_id}/staff/{user_id}")
+def delete_staff(
+    lab_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_lab_admin_or_above)
+):
+    """Delete a staff member from a lab."""
+    if current_user.role != "Software Admin" and current_user.lab_id != lab_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    user = db.exec(select(User).where(User.id == user_id, User.lab_id == lab_id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+        
+    # Null out nullable user references in other tables
+    db.exec("UPDATE report SET technician_id = NULL WHERE technician_id = :user_id", {"user_id": user_id})
+    db.exec("UPDATE report SET doctor_id = NULL WHERE doctor_id = :user_id", {"user_id": user_id})
+    db.exec("UPDATE audit_log SET user_id = NULL WHERE user_id = :user_id", {"user_id": user_id})
+    
+    db.delete(user)
+    db.commit()
+    return {"message": "Staff member deleted successfully"}
+
