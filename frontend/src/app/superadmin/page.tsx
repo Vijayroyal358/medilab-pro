@@ -290,7 +290,7 @@ export default function SuperAdminDashboard() {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Labs preview */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
                       <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                         <h2 className="text-base font-extrabold text-slate-800">Laboratories Overview</h2>
                         <button onClick={() => setActiveTab("labs")} className="text-xs font-bold text-[#00A770] flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></button>
@@ -298,7 +298,7 @@ export default function SuperAdminDashboard() {
                       <LabTable labs={labs.slice(0, 5)} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
                     </div>
                     {/* Staff preview */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
                       <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                         <h2 className="text-base font-extrabold text-slate-800">Staff Directory</h2>
                         <button onClick={() => setActiveTab("staff")} className="text-xs font-bold text-[#00A770] flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></button>
@@ -340,7 +340,7 @@ export default function SuperAdminDashboard() {
 
               {/* ── LABORATORIES TAB ── */}
               {activeTab === "labs" && (
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
                   <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-lg font-extrabold text-slate-800">All Laboratories <span className="text-slate-400 font-normal text-sm">({labs.length})</span></h2>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -367,7 +367,7 @@ export default function SuperAdminDashboard() {
 
               {/* ── STAFF MANAGEMENT TAB ── */}
               {activeTab === "staff" && (
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
                   <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-lg font-extrabold text-slate-800">Staff Management <span className="text-slate-400 font-normal text-sm">({allStaff.length})</span></h2>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -579,7 +579,7 @@ export default function SuperAdminDashboard() {
 
 function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, onPlan, plans, onDelete }: any) {
   return (
-    <div className="overflow-x-auto" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -654,7 +654,7 @@ function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, 
 
 function StaffTable({ staff, onToggle, onDelete }: { staff: any[]; onToggle: (s: any) => void; onDelete: (s: any) => void }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
