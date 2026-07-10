@@ -17,6 +17,7 @@ class Lab(SQLModel, table=True):
     google_review_url: Optional[str] = None
     logo_path: Optional[str] = None
     is_active: bool = Field(default=True)
+    subscription_plan: str = Field(default="Trial")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships

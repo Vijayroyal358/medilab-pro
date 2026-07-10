@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app.core.db import get_db
 from app.core.security import get_password_hash
-from app.models.models import Lab, User
+from app.models.models import Lab, User, Test, Report
 from app.routers.deps import get_current_user
 
 router = APIRouter(prefix="/superadmin", tags=["superadmin"])
@@ -61,6 +61,7 @@ class LabSummary(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     is_active: bool
+    subscription_plan: str
     created_at: datetime
     staff_count: int = 0
     owner_name: Optional[str] = None
@@ -148,6 +149,7 @@ def list_labs(
             email=lab.email,
             address=lab.address,
             is_active=lab.is_active,
+            subscription_plan=lab.subscription_plan,
             created_at=lab.created_at,
             staff_count=len(staff),
             owner_name=owner.name if owner else None,
@@ -228,3 +230,74 @@ def update_staff(
     db.add(user)
     db.commit()
     return {"message": "Staff updated"}
+
+@router.get("/dashboard-stats")
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_software_admin)
+):
+    total_labs = db.exec(select(Lab)).all()
+    total_staff = db.exec(select(User).where(User.role != "Patient", User.role != "Software Admin")).all()
+    total_tests = db.exec(select(Test)).all()
+    tests_processed = db.exec(select(Report)).all() # Mocked as number of reports
+    active_services = sum(1 for lab in total_labs if lab.is_active)
+    
+    return {
+        "total_laboratories": len(total_labs),
+        "total_staff": len(total_staff),
+        "total_tests": len(total_tests),
+        "tests_processed": len(tests_processed),
+        "active_services": active_services
+    }
+
+@router.get("/recent-staff")
+def get_recent_staff(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_software_admin)
+):
+    # Get latest 5 staff across all labs
+    staff = db.exec(select(User).where(User.role != "Patient", User.role != "Software Admin").order_by(User.created_at.desc()).limit(5)).all()
+    
+    result = []
+    for s in staff:
+        lab = db.exec(select(Lab).where(Lab.id == s.lab_id)).first()
+        result.append({
+            "id": s.id,
+            "name": s.name,
+            "email": s.email,
+            "role": s.role,
+            "lab_name": lab.name if lab else "Unknown",
+            "is_active": s.is_active,
+            "created_at": s.created_at
+        })
+    return result
+
+@router.get("/recent-activity")
+def get_recent_activity(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_software_admin)
+):
+    # Synthesize activity from latest labs and staff
+    labs = db.exec(select(Lab).order_by(Lab.created_at.desc()).limit(5)).all()
+    staff = db.exec(select(User).where(User.role != "Patient", User.role != "Software Admin").order_by(User.created_at.desc()).limit(5)).all()
+    
+    activities = []
+    for lab in labs:
+        activities.append({
+            "type": "lab_created",
+            "title": "New laboratory registered",
+            "description": lab.name,
+            "timestamp": lab.created_at
+        })
+    for s in staff:
+        lab = db.exec(select(Lab).where(Lab.id == s.lab_id)).first()
+        activities.append({
+            "type": "staff_added",
+            "title": "Staff added",
+            "description": f"{s.name} joined {lab.name if lab else 'Unknown'}",
+            "timestamp": s.created_at
+        })
+    
+    # Sort descending by timestamp and return top 5
+    activities.sort(key=lambda x: x["timestamp"], reverse=True)
+    return activities[:5]

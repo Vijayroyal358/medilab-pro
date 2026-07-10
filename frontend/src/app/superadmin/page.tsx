@@ -2,90 +2,65 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { 
+  LayoutDashboard, FlaskConical, Users, CreditCard, History, Settings,
+  Search, Bell, ChevronDown, MoreVertical, Building2, ClipboardCheck, ShieldCheck,
+  CheckCircle2, XCircle
+} from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
-
-const ROLES = ["Lab Owner", "Lab Admin", "Receptionist", "Technician", "Doctor"];
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // Data States
+  const [stats, setStats] = useState({
+    total_laboratories: 0,
+    total_staff: 0,
+    total_tests: 0,
+    tests_processed: 0,
+    active_services: 0
+  });
   const [labs, setLabs] = useState<any[]>([]);
-  const [selectedLab, setSelectedLab] = useState<any | null>(null);
-  const [staff, setStaff] = useState<any[]>([]);
+  const [recentStaff, setRecentStaff] = useState<any[]>([]);
+  const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"labs" | "staff">("labs");
 
-  // Modals
-  const [showCreateLab, setShowCreateLab] = useState(false);
-  const [showAddStaff, setShowAddStaff] = useState(false);
-  const [labForm, setLabForm] = useState({ name: "", address: "", phone: "", email: "", owner_name: "", owner_email: "", owner_phone: "" });
-  const [staffForm, setStaffForm] = useState({ name: "", email: "", phone: "", role: "Receptionist" });
-  const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  // Active Tab
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
     const t = localStorage.getItem("medilab_access_token");
-    const role = JSON.parse(localStorage.getItem("medilab_user") || "{}").role;
-    if (!t || role !== "Software Admin") { router.push("/auth/login"); return; }
+    const up = JSON.parse(localStorage.getItem("medilab_user") || "{}");
+    if (!t || up.role !== "Software Admin") { router.push("/auth/login"); return; }
     setToken(t);
-    fetchLabs(t);
+    setUserProfile(up);
+    fetchData(t);
   }, []);
 
   const headers = (t: string) => ({ Authorization: `Bearer ${t}`, "Content-Type": "application/json" });
 
-  const fetchLabs = async (t: string) => {
+  const fetchData = async (t: string) => {
     setLoading(true);
-    const res = await fetch(`${API}/superadmin/labs`, { headers: headers(t) });
-    if (res.ok) setLabs(await res.json());
-    setLoading(false);
-  };
+    try {
+      const [statsRes, labsRes, staffRes, activityRes] = await Promise.all([
+        fetch(`${API}/superadmin/dashboard-stats`, { headers: headers(t) }),
+        fetch(`${API}/superadmin/labs`, { headers: headers(t) }),
+        fetch(`${API}/superadmin/recent-staff`, { headers: headers(t) }),
+        fetch(`${API}/superadmin/recent-activity`, { headers: headers(t) })
+      ]);
 
-  const fetchStaff = async (labId: number) => {
-    const res = await fetch(`${API}/superadmin/labs/${labId}/staff`, { headers: headers(token!) });
-    if (res.ok) setStaff(await res.json());
-  };
-
-  const openLab = (lab: any) => {
-    setSelectedLab(lab);
-    fetchStaff(lab.id);
-    setView("staff");
-  };
-
-  const createLab = async () => {
-    const res = await fetch(`${API}/superadmin/labs`, {
-      method: "POST", headers: headers(token!), body: JSON.stringify(labForm),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setMsg({ text: `Lab created! Owner temp password: ${data.temp_password}`, type: "success" });
-      setShowCreateLab(false);
-      setLabForm({ name: "", address: "", phone: "", email: "", owner_name: "", owner_email: "", owner_phone: "" });
-      fetchLabs(token!);
-    } else {
-      setMsg({ text: data.detail || "Failed to create lab", type: "error" });
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (labsRes.ok) setLabs(await labsRes.json());
+      if (staffRes.ok) setRecentStaff(await staffRes.json());
+      if (activityRes.ok) setActivity(await activityRes.json());
+    } catch (err) {
+      console.error("Failed to load dashboard data", err);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const addStaff = async () => {
-    const res = await fetch(`${API}/superadmin/labs/${selectedLab.id}/staff`, {
-      method: "POST", headers: headers(token!), body: JSON.stringify(staffForm),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setMsg({ text: `Staff added! Temp password: ${staffForm.name.split(" ")[0]}@Staff1`, type: "success" });
-      setShowAddStaff(false);
-      setStaffForm({ name: "", email: "", phone: "", role: "Receptionist" });
-      fetchStaff(selectedLab.id);
-    } else {
-      setMsg({ text: data.detail || "Failed to add staff", type: "error" });
-    }
-  };
-
-  const toggleStaff = async (userId: number, isActive: boolean) => {
-    await fetch(`${API}/superadmin/labs/${selectedLab.id}/staff/${userId}`, {
-      method: "PATCH", headers: headers(token!), body: JSON.stringify({ is_active: !isActive }),
-    });
-    fetchStaff(selectedLab.id);
   };
 
   const logout = () => {
@@ -94,193 +69,316 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a", color: "#e2e8f0", fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
-      <div style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "0 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: "60px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ width: 32, height: 32, background: "linear-gradient(135deg,#10b981,#059669)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14 }}>M</div>
+    <div className="flex min-h-screen bg-[#F8F9FA] text-slate-800 font-sans">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#00A770] rounded-xl flex items-center justify-center text-white shrink-0">
+            <FlaskConical className="w-6 h-6" />
+          </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9" }}>MediLabs Pro</div>
-            <div style={{ fontSize: 11, color: "#10b981" }}>Software Admin Console</div>
+            <div className="font-extrabold text-[#00A770] text-lg leading-tight tracking-tight">MediLab Pro</div>
+            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Lab Management System</div>
           </div>
         </div>
-        <button onClick={logout} style={{ background: "transparent", border: "1px solid #475569", color: "#94a3b8", padding: "6px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
-          Sign Out
-        </button>
-      </div>
+        
+        <nav className="flex-1 px-4 space-y-1">
+          <SidebarItem icon={<LayoutDashboard size={18} />} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+          <SidebarItem icon={<FlaskConical size={18} />} label="Laboratories" active={activeTab === "labs"} onClick={() => setActiveTab("labs")} />
+          <SidebarItem icon={<Users size={18} />} label="Staff Management" active={activeTab === "staff"} onClick={() => setActiveTab("staff")} />
+          <SidebarItem icon={<CreditCard size={18} />} label="Plans & Billing" active={activeTab === "billing"} onClick={() => setActiveTab("billing")} />
+          <SidebarItem icon={<History size={18} />} label="Activity Log" active={activeTab === "activity"} onClick={() => setActiveTab("activity")} />
+        </nav>
+        
+        <div className="p-4 mt-auto">
+          <SidebarItem icon={<Settings size={18} />} label="Settings" active={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
+        </div>
+      </aside>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 1rem" }}>
-        {/* Alert */}
-        {msg && (
-          <div style={{ background: msg.type === "success" ? "#064e3b" : "#7f1d1d", border: `1px solid ${msg.type === "success" ? "#10b981" : "#ef4444"}`, color: "#f1f5f9", padding: "0.75rem 1rem", borderRadius: 10, marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
-            {msg.text}
-            <button onClick={() => setMsg(null)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 16 }}>×</button>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Header */}
+        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-800">Welcome back, {userProfile?.name?.split(" ")[0] || "Admin"} <span className="text-2xl">👋</span></h1>
+            <p className="text-sm text-slate-500 mt-1">Here's what's happening across your network today.</p>
           </div>
-        )}
-
-        {view === "labs" ? (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "#f1f5f9" }}>Laboratories</h1>
-                <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>{labs.length} labs registered</p>
+          
+          <div className="flex items-center gap-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                className="pl-9 pr-12 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00A770]/20 focus:border-[#00A770] transition-all w-64"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-400 shadow-sm">
+                ⌘K
               </div>
-              <button onClick={() => setShowCreateLab(true)} style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
-                + New Lab
-              </button>
             </div>
-
-            {loading ? (
-              <p style={{ color: "#64748b", textAlign: "center", marginTop: "4rem" }}>Loading...</p>
-            ) : labs.length === 0 ? (
-              <div style={{ textAlign: "center", marginTop: "4rem", color: "#64748b" }}>
-                <div style={{ fontSize: 40, marginBottom: "1rem" }}>🏥</div>
-                <p style={{ fontSize: 16 }}>No labs yet. Create your first lab.</p>
+            
+            <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer" onClick={logout}>
+              <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
+                <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff" alt="Avatar" className="w-full h-full object-cover" />
               </div>
-            ) : (
-              <div style={{ display: "grid", gap: "1rem" }}>
-                {labs.map((lab) => (
-                  <div key={lab.id} onClick={() => openLab(lab)} style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, padding: "1.25rem 1.5rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "border-color 0.2s" }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = "#10b981")}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = "#334155")}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: "#f1f5f9", fontSize: 15 }}>{lab.name}</div>
-                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                        slug: <span style={{ color: "#10b981" }}>{lab.slug}</span>
-                        {lab.owner_name && <> &bull; Owner: {lab.owner_name} ({lab.owner_email})</>}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 20, fontWeight: 700, color: "#10b981" }}>{lab.staff_count}</div>
-                        <div style={{ fontSize: 11, color: "#64748b" }}>Staff</div>
-                      </div>
-                      <span style={{ background: lab.is_active ? "#064e3b" : "#450a0a", color: lab.is_active ? "#10b981" : "#ef4444", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>
-                        {lab.is_active ? "Active" : "Suspended"}
-                      </span>
-                      <span style={{ color: "#475569", fontSize: 18 }}>›</span>
-                    </div>
+              <div>
+                <div className="text-sm font-bold text-slate-800 leading-tight">{userProfile?.name || "Admin User"}</div>
+                <div className="text-xs text-slate-500">{userProfile?.role || "Super Admin"}</div>
+              </div>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </div>
+          </div>
+        </header>
+
+        {/* Dashboard Scrollable Area */}
+        <div className="flex-1 overflow-y-auto p-8">
+          {loading ? (
+            <div className="flex h-full items-center justify-center text-slate-400">Loading dashboard data...</div>
+          ) : (
+            <div className="space-y-8 max-w-7xl mx-auto">
+              
+              {/* Metrics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <MetricCard 
+                  icon={<Building2 className="w-5 h-5 text-emerald-600" />} 
+                  iconBg="bg-emerald-100"
+                  label="Total Laboratories" 
+                  value={stats.total_laboratories} 
+                  subtext="All labs in network" 
+                />
+                <MetricCard 
+                  icon={<Users className="w-5 h-5 text-purple-600" />} 
+                  iconBg="bg-purple-100"
+                  label="Total Staff" 
+                  value={stats.total_staff} 
+                  subtext="Across all laboratories" 
+                />
+                <MetricCard 
+                  icon={<FlaskConical className="w-5 h-5 text-blue-600" />} 
+                  iconBg="bg-blue-100"
+                  label="Total Tests" 
+                  value={stats.total_tests.toLocaleString()} 
+                  subtext="Total tests created" 
+                />
+                <MetricCard 
+                  icon={<ClipboardCheck className="w-5 h-5 text-orange-600" />} 
+                  iconBg="bg-orange-100"
+                  label="Tests Processed" 
+                  value={stats.tests_processed.toLocaleString()} 
+                  subtext="Completed tests" 
+                />
+                <MetricCard 
+                  icon={<ShieldCheck className="w-5 h-5 text-[#00A770]" />} 
+                  iconBg="bg-emerald-100"
+                  label="Active Services" 
+                  value={stats.active_services} 
+                  subtext="Active subscriptions" 
+                />
+              </div>
+
+              {/* Tables Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* Laboratories Table */}
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <h2 className="text-base font-extrabold text-slate-800">Laboratories Overview</h2>
+                    <button className="text-xs font-bold text-slate-500 hover:text-[#00A770] px-3 py-1.5 border border-slate-200 rounded-lg hover:border-[#00A770]/30 transition-all">View all</button>
                   </div>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <div>
-                <button onClick={() => setView("labs")} style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", fontSize: 13, padding: 0, marginBottom: 4 }}>← Back to Labs</button>
-                <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "#f1f5f9" }}>{selectedLab?.name}</h1>
-                <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>slug: {selectedLab?.slug}</p>
-              </div>
-              <button onClick={() => setShowAddStaff(true)} style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
-                + Add Staff
-              </button>
-            </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="px-6 py-3 font-bold">Laboratory</th>
+                          <th className="px-6 py-3 font-bold">Owner</th>
+                          <th className="px-6 py-3 font-bold text-center">Staff</th>
+                          <th className="px-6 py-3 font-bold text-center">Status</th>
+                          <th className="px-6 py-3 font-bold text-center">Plan</th>
+                          <th className="px-6 py-3 font-bold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {labs.slice(0, 5).map(lab => (
+                          <tr key={lab.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
+                                  <Building2 className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-800">{lab.name}</div>
+                                  <div className="text-xs text-slate-500">{lab.address || "Location unavailable"}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-slate-800">{lab.owner_name || "—"}</div>
+                              <div className="text-xs text-slate-500">{lab.owner_email || "—"}</div>
+                            </td>
+                            <td className="px-6 py-4 text-center font-bold text-slate-700">{lab.staff_count}</td>
+                            <td className="px-6 py-4 text-center">
+                              <StatusBadge active={lab.is_active} />
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-xs font-semibold text-slate-600">{lab.subscription_plan}</span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-            <div style={{ background: "#1e293b", borderRadius: 12, border: "1px solid #334155", overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #334155" }}>
-                    {["Name", "Email", "Phone", "Role", "Status", "Action"].map(h => (
-                      <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                {/* Staff Directory */}
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <h2 className="text-base font-extrabold text-slate-800">Staff Directory</h2>
+                    <button className="text-xs font-bold text-slate-500 hover:text-[#00A770] px-3 py-1.5 border border-slate-200 rounded-lg hover:border-[#00A770]/30 transition-all">View all</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="px-6 py-3 font-bold">Staff Member</th>
+                          <th className="px-6 py-3 font-bold">Role</th>
+                          <th className="px-6 py-3 font-bold">Laboratory</th>
+                          <th className="px-6 py-3 font-bold text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {recentStaff.map(staff => (
+                          <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                                  <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(staff.name)}&background=random`} alt={staff.name} />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-800">{staff.name}</div>
+                                  <div className="text-xs text-slate-500">{staff.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs font-semibold text-slate-600">{staff.role}</span>
+                            </td>
+                            <td className="px-6 py-4 text-slate-600 text-xs font-medium">{staff.lab_name}</td>
+                            <td className="px-6 py-4 text-center">
+                              <StatusBadge active={staff.is_active} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Recent Activity */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-8">
+                <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                  <h2 className="text-base font-extrabold text-slate-800">Recent Activity</h2>
+                  <button className="text-xs font-bold text-slate-500 hover:text-[#00A770] px-3 py-1.5 border border-slate-200 rounded-lg hover:border-[#00A770]/30 transition-all">View all</button>
+                </div>
+                <div className="p-6">
+                  <div className="space-y-6">
+                    {activity.map((act, i) => (
+                      <div key={i} className="flex gap-4">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                            act.type === 'lab_created' ? 'bg-emerald-50 text-emerald-600' :
+                            act.type === 'staff_added' ? 'bg-blue-50 text-blue-600' :
+                            'bg-purple-50 text-purple-600'
+                          }`}>
+                            {act.type === 'lab_created' ? <Building2 className="w-4 h-4" /> :
+                             act.type === 'staff_added' ? <Users className="w-4 h-4" /> :
+                             <History className="w-4 h-4" />}
+                          </div>
+                          {i !== activity.length - 1 && <div className="w-px h-full bg-slate-100 mt-2"></div>}
+                        </div>
+                        <div className="pb-2 flex-1 flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-bold text-slate-800">{act.title}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">{act.description}</div>
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {new Date(act.timestamp).toLocaleDateString()} {new Date(act.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {staff.map((s) => (
-                    <tr key={s.id} style={{ borderBottom: "1px solid #1e293b" }}>
-                      <td style={{ padding: "12px 16px", fontSize: 14, color: "#f1f5f9", fontWeight: 500 }}>{s.name}</td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, color: "#94a3b8" }}>{s.email}</td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, color: "#94a3b8" }}>{s.phone || "—"}</td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span style={{ background: "#1e3a5f", color: "#60a5fa", padding: "2px 10px", borderRadius: 20, fontSize: 12 }}>{s.role}</span>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span style={{ background: s.is_active ? "#064e3b" : "#450a0a", color: s.is_active ? "#10b981" : "#ef4444", padding: "2px 10px", borderRadius: 20, fontSize: 12 }}>
-                          {s.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <button onClick={() => toggleStaff(s.id, s.is_active)} style={{ background: "none", border: "1px solid #475569", color: "#94a3b8", padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
-                          {s.is_active ? "Deactivate" : "Activate"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {staff.length === 0 && (
-                    <tr><td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "#64748b", fontSize: 14 }}>No staff members yet</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Create Lab Modal */}
-      {showCreateLab && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-          <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 16, padding: "2rem", width: "90%", maxWidth: 520 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginTop: 0 }}>Create New Lab</h2>
-            <div style={{ display: "grid", gap: "0.75rem" }}>
-              {[
-                { label: "Lab Name *", key: "name", ph: "e.g. City Diagnostic Center" },
-                { label: "Address", key: "address", ph: "Full address" },
-                { label: "Lab Phone", key: "phone", ph: "+91..." },
-                { label: "Lab Email", key: "email", ph: "lab@example.com" },
-                { label: "Owner Full Name *", key: "owner_name", ph: "Dr. Vijay Kumar" },
-                { label: "Owner Email *", key: "owner_email", ph: "owner@example.com" },
-                { label: "Owner Phone", key: "owner_phone", ph: "+91..." },
-              ].map(({ label, key, ph }) => (
-                <div key={key}>
-                  <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 4 }}>{label}</label>
-                  <input value={(labForm as any)[key]} onChange={e => setLabForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={ph} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", color: "#f1f5f9", fontSize: 13, boxSizing: "border-box" }} />
+                    {activity.length === 0 && <div className="text-sm text-slate-500">No recent activity found.</div>}
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
-              <button onClick={() => setShowCreateLab(false)} style={{ flex: 1, background: "none", border: "1px solid #475569", color: "#94a3b8", padding: "10px", borderRadius: 8, cursor: "pointer" }}>Cancel</button>
-              <button onClick={createLab} style={{ flex: 1, background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff", border: "none", padding: "10px", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>Create Lab</button>
-            </div>
-            <p style={{ fontSize: 11, color: "#64748b", marginTop: "0.75rem", textAlign: "center" }}>Owner will receive a temporary password shown after creation</p>
-          </div>
-        </div>
-      )}
-
-      {/* Add Staff Modal */}
-      {showAddStaff && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-          <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 16, padding: "2rem", width: "90%", maxWidth: 420 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginTop: 0 }}>Add Staff to {selectedLab?.name}</h2>
-            <div style={{ display: "grid", gap: "0.75rem" }}>
-              {[
-                { label: "Full Name *", key: "name", ph: "Dr. Ravi Kumar" },
-                { label: "Email *", key: "email", ph: "staff@example.com" },
-                { label: "Phone", key: "phone", ph: "+91..." },
-              ].map(({ label, key, ph }) => (
-                <div key={key}>
-                  <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 4 }}>{label}</label>
-                  <input value={(staffForm as any)[key]} onChange={e => setStaffForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={ph} style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", color: "#f1f5f9", fontSize: 13, boxSizing: "border-box" }} />
-                </div>
-              ))}
-              <div>
-                <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 4 }}>Role *</label>
-                <select value={staffForm.role} onChange={e => setStaffForm(f => ({ ...f, role: e.target.value }))}
-                  style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "8px 12px", color: "#f1f5f9", fontSize: 13 }}>
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
               </div>
+
             </div>
-            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
-              <button onClick={() => setShowAddStaff(false)} style={{ flex: 1, background: "none", border: "1px solid #475569", color: "#94a3b8", padding: "10px", borderRadius: 8, cursor: "pointer" }}>Cancel</button>
-              <button onClick={addStaff} style={{ flex: 1, background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff", border: "none", padding: "10px", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>Add Staff</button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </main>
     </div>
+  );
+}
+
+// Helper Components
+
+function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+        active 
+          ? "bg-emerald-50 text-[#00A770] font-extrabold" 
+          : "text-slate-500 font-semibold hover:bg-slate-50 hover:text-slate-700"
+      }`}
+    >
+      {icon}
+      <span className="text-sm">{label}</span>
+    </button>
+  );
+}
+
+function MetricCard({ icon, iconBg, label, value, subtext }: { icon: React.ReactNode, iconBg: string, label: string, value: string | number, subtext: string }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+          {icon}
+        </div>
+        <div>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</div>
+          <div className="text-2xl font-extrabold text-slate-800 leading-none">{value}</div>
+        </div>
+      </div>
+      <div className="mt-4 pt-4 border-t border-slate-100 text-xs font-medium text-slate-500">
+        {subtext}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  if (active) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-extrabold tracking-wide uppercase border border-emerald-100/50">
+        Active
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-extrabold tracking-wide uppercase border border-red-100/50">
+      Inactive
+    </span>
   );
 }
