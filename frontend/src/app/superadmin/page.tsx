@@ -43,6 +43,9 @@ export default function SuperAdminDashboard() {
   const [labSearch, setLabSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
 
+  // Custom confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+
   useEffect(() => {
     const t = localStorage.getItem("medilab_access_token");
     const up = JSON.parse(localStorage.getItem("medilab_user") || "{}");
@@ -147,47 +150,35 @@ export default function SuperAdminDashboard() {
     fetchData(token!);
   };
 
-  const deleteLab = async (lab: any) => {
-    if (!confirm(`Are you sure you want to completely delete "${lab.name}" and all of its associated data (patients, staff, tests, reports)? This action CANNOT be undone.`)) return;
-    
-    try {
-      const res = await fetch(`${API}/superadmin/labs/${lab.id}`, {
-        method: "DELETE",
-        headers: hdr(token!),
-      });
-      if (res.ok) {
-        alert("Laboratory and all associated data deleted successfully.");
-        fetchLabs();
-        setOpenDropdown(null);
-      } else {
-        const d = await res.json();
-        alert(d.detail || "Failed to delete laboratory.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while deleting the laboratory.");
-    }
+  const deleteLab = (lab: any) => {
+    setOpenDropdown(null);
+    setConfirmDialog({
+      title: `Delete "${lab.name}"?`,
+      message: `This will permanently delete the lab and ALL associated data (patients, staff, tests, reports). This action CANNOT be undone.`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`${API}/superadmin/labs/${lab.id}`, { method: "DELETE", headers: hdr(token!) });
+          if (res.ok) { fetchLabs(); }
+          else { const d = await res.json(); alert(d.detail || "Failed to delete laboratory."); }
+        } catch { alert("An error occurred while deleting the laboratory."); }
+      },
+    });
   };
 
-  const deleteStaff = async (staff: any) => {
-    if (!confirm(`Are you sure you want to delete staff member "${staff.name}"?`)) return;
-    
-    try {
-      const res = await fetch(`${API}/superadmin/labs/${staff.lab_id}/staff/${staff.id}`, {
-        method: "DELETE",
-        headers: hdr(token!),
-      });
-      if (res.ok) {
-        alert("Staff member deleted successfully.");
-        fetchData(token!);
-      } else {
-        const d = await res.json();
-        alert(d.detail || "Failed to delete staff member.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while deleting the staff member.");
-    }
+  const deleteStaff = (staff: any) => {
+    setConfirmDialog({
+      title: `Delete "${staff.name}"?`,
+      message: `This will permanently remove this staff member from the system.`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`${API}/superadmin/labs/${staff.lab_id}/staff/${staff.id}`, { method: "DELETE", headers: hdr(token!) });
+          if (res.ok) { fetchData(token!); }
+          else { const d = await res.json(); alert(d.detail || "Failed to delete staff member."); }
+        } catch { alert("An error occurred while deleting the staff member."); }
+      },
+    });
   };
 
   const logout = () => { localStorage.clear(); router.push("/auth/login"); };
@@ -206,6 +197,35 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] text-slate-800 font-sans relative">
+      {/* Custom Confirm Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-800 mb-2">{confirmDialog.title}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{confirmDialog.message}</p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -580,7 +600,16 @@ export default function SuperAdminDashboard() {
 function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, onPlan, plans, onDelete }: any) {
   return (
     <div className="relative" ref={dropdownRef}>
-      <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm min-w-[700px]">
+        <colgroup>
+          <col style={{ width: "30%" }} />
+          <col style={{ width: "22%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "8%" }} />
+        </colgroup>
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             <th className="px-6 py-3">Laboratory</th>
@@ -648,6 +677,7 @@ function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, 
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -655,7 +685,15 @@ function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, 
 function StaffTable({ staff, onToggle, onDelete }: { staff: any[]; onToggle: (s: any) => void; onDelete: (s: any) => void }) {
   return (
     <div className="relative">
-      <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm min-w-[600px]">
+        <colgroup>
+          <col style={{ width: "32%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "22%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "18%" }} />
+        </colgroup>
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             <th className="px-6 py-3">Staff Member</th>
@@ -703,6 +741,7 @@ function StaffTable({ staff, onToggle, onDelete }: { staff: any[]; onToggle: (s:
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
