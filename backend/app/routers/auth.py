@@ -48,9 +48,8 @@ def login(
         user = db.exec(select(User).where(User.email == user_in.email)).first()
         if not user or not verify_password(user_in.password, user.hashed_password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        token_data = {"sub": str(user.id), "role": user.role, "lab_id": None}
-        access_token = create_access_token(token_data)
-        refresh_token = create_refresh_token(token_data)
+        access_token = create_access_token(user.id, user.role, None)
+        refresh_token = create_refresh_token(user.id, user.role, None)
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
