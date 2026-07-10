@@ -40,69 +40,34 @@ def verify_slug(slug: str, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 def login(
     user_in: UserLogin,
-    lab_slug: str = "",  # Optional for Software Admin
     db: Session = Depends(get_db)
 ):
-    # Software Admin: global login, no lab slug needed
-    if not lab_slug:
-        user = db.exec(select(User).where(User.email == user_in.email)).first()
-        if not user or not verify_password(user_in.password, user.hashed_password):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-        if user.role != "Software Admin":
-            raise HTTPException(status_code=403, detail="Lab slug is required for non-admin users")
-        access_token = create_access_token(user.id, user.role, None)
-        refresh_token = create_refresh_token(user.id, user.role, None)
-        return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            name=user.name,
-            role=user.role,
-            lab_id=0,
-            lab_name="MediLabs Platform",
-        )
+    # Look up user by email globally — lab is derived from user record
+    user = db.exec(select(User).where(User.email == user_in.email)).first()
 
-    # 1. Fetch lab by slug
-    lab = get_lab_by_slug(db, lab_slug)
-    if not lab:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Laboratory tenant not found"
-        )
-    
-    # 2. Fetch user in that lab
-    user = db.exec(
-        select(User).where(User.email == user_in.email, User.lab_id == lab.id)
-    ).first()
-    
     if not user or not verify_password(user_in.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect email or password"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User account is deactivated"
-        )
-    
-    # Create tokens
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated")
+
+    lab = db.get(Lab, user.lab_id) if user.lab_id else None
+
     access_token = create_access_token(subject=user.id, role=user.role, lab_id=user.lab_id)
     refresh_token = create_refresh_token(subject=user.id, role=user.role, lab_id=user.lab_id)
-    
-    # Create Audit Log for successful login
-    create_audit_log(db, lab_id=user.lab_id, user_id=user.id, action="LOGIN", details=f"User {user.name} logged in successfully")
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "role": user.role,
-        "name": user.name,
-        "lab_id": user.lab_id,
-        "lab_name": lab.name
-    }
+
+    if user.role != "Software Admin":
+        create_audit_log(db, lab_id=user.lab_id, user_id=user.id, action="LOGIN", details=f"User {user.name} logged in successfully")
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        role=user.role,
+        name=user.name,
+        lab_id=user.lab_id or 0,
+        lab_name=lab.name if lab else "MediLabs Platform",
+    )
 
 @router.post("/login-oauth2")
 def login_oauth2(
