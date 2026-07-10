@@ -76,11 +76,12 @@ export default function SuperAdminDashboard() {
         fetch(`${API}/superadmin/labs`, { headers: hdr(t) }),
         fetch(`${API}/superadmin/recent-staff`, { headers: hdr(t) }),
         fetch(`${API}/superadmin/recent-activity`, { headers: hdr(t) }),
-        fetch(`${API}/superadmin/recent-staff`, { headers: hdr(t) }), // reuse for now
+        fetch(`${API}/superadmin/all-staff`, { headers: hdr(t) }),
       ]);
       if (s.ok) setStats(await s.json());
       if (l.ok) setLabs(await l.json());
-      if (st.ok) { const d = await st.json(); setRecentStaff(d); setAllStaff(d); }
+      if (st.ok) setRecentStaff(await st.json());
+      if (allSt.ok) setAllStaff(await allSt.json());
       if (a.ok) setActivity(await a.json());
     } catch (err) {
       console.error("Failed to load dashboard", err);

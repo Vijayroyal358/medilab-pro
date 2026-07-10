@@ -274,14 +274,34 @@ def get_recent_staff(
     db: Session = Depends(get_db),
     _: User = Depends(require_software_admin)
 ):
-    # Get latest 5 staff across all labs
     staff = db.exec(select(User).where(User.role != "Patient", User.role != "Software Admin").order_by(User.created_at.desc()).limit(5)).all()
-    
     result = []
     for s in staff:
         lab = db.exec(select(Lab).where(Lab.id == s.lab_id)).first()
         result.append({
             "id": s.id,
+            "lab_id": s.lab_id,
+            "name": s.name,
+            "email": s.email,
+            "role": s.role,
+            "lab_name": lab.name if lab else "Unknown",
+            "is_active": s.is_active,
+            "created_at": s.created_at
+        })
+    return result
+
+@router.get("/all-staff")
+def get_all_staff(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_software_admin)
+):
+    staff = db.exec(select(User).where(User.role != "Patient", User.role != "Software Admin").order_by(User.created_at.desc())).all()
+    result = []
+    for s in staff:
+        lab = db.exec(select(Lab).where(Lab.id == s.lab_id)).first()
+        result.append({
+            "id": s.id,
+            "lab_id": s.lab_id,
             "name": s.name,
             "email": s.email,
             "role": s.role,
