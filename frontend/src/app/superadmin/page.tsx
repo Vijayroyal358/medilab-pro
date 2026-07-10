@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, FlaskConical, Users, CreditCard, History, Settings,
   Search, Bell, ChevronDown, MoreVertical, Building2, ClipboardCheck, ShieldCheck,
-  Plus, X, CheckCircle, XCircle, ChevronRight,
+  Plus, X, CheckCircle, XCircle, ChevronRight, Trash2, Menu
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
