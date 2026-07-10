@@ -65,3 +65,19 @@ def update_lab_setup(
     db.commit()
     db.refresh(lab)
     return lab
+
+@router.get("/staff")
+def get_lab_staff(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Return all active staff for the current user's lab."""
+    from sqlmodel import select as sql_select
+    staff = db.exec(
+        sql_select(User)
+        .where(User.lab_id == current_user.lab_id)
+        .where(User.role != "Patient")
+        .where(User.is_active == True)
+        .order_by(User.name)
+    ).all()
+    return [{"id": u.id, "name": u.name, "role": u.role} for u in staff]

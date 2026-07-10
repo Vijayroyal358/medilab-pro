@@ -38,9 +38,11 @@ class RoleChecker:
 
     def __call__(self, current_user: User = Depends(get_current_user)) -> User:
         # Super Admin bypasses all checks
-        if current_user.role == "Super Admin":
+        if current_user.role == "Software Admin":
             return current_user
-        if current_user.role not in self.allowed_roles:
+        # Lab Owner has the same access as Lab Admin within their lab
+        effective_role = "Lab Admin" if current_user.role == "Lab Owner" else current_user.role
+        if effective_role not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to access this resource"

@@ -138,15 +138,20 @@ export default function ModifyBillPage() {
   const [paymentMode, setPaymentMode] = useState("cash");
   const [remarks, setRemarks] = useState("");
   const [isCanceled, setIsCanceled] = useState(false);
+  const [staffList, setStaffList] = useState<{id: number; name: string}[]>([]);
 
   const loadBillData = async () => {
     setLoading(true);
     try {
-      const [allTests, referralList] = await Promise.all([
+      const [allTests, referralList, staffRes] = await Promise.all([
         getTests(),
-        getReferrals()
+        getReferrals(),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://medilab-pro.onrender.com"}/setup/staff`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("medilab_access_token")}` }
+        }).then(r => r.ok ? r.json() : [])
       ]);
       setReferrals(referralList);
+      setStaffList(Array.isArray(staffRes) ? staffRes : []);
 
       const matchedTests = allTests.filter(
         t => t.invoice_number.toLowerCase() === invoiceId.toLowerCase()
@@ -587,8 +592,8 @@ export default function ModifyBillPage() {
               onChange={(e) => setCollectionAgent(e.target.value)}
               className="px-3 w-full h-10 rounded-lg border border-borders dark:border-darkBorders bg-transparent text-xs focus:outline-none"
             >
-              <option value="Reddy">Agent Reddy</option>
-              <option value="Smith">Agent Smith</option>
+              <option value="">Select agent</option>
+              {staffList.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
 

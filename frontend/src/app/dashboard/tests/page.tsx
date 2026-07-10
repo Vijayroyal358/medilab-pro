@@ -107,7 +107,7 @@ export default function NewBillPage() {
   const mobile = mobileCountryCode + mainMobileNumber;
 
   // Collection Agent Dynamic options
-  const [collectionAgents, setCollectionAgents] = useState<string[]>(["Reddy", "Smith"]);
+  const [collectionAgents, setCollectionAgents] = useState<string[]>([]);
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [newAgentName, setNewAgentName] = useState("");
 
@@ -216,12 +216,16 @@ export default function NewBillPage() {
 
   const loadInitialData = async () => {
     try {
-      const [patientList, referralList] = await Promise.all([
+      const [patientList, referralList, staffRes] = await Promise.all([
         getPatients(),
-        getReferrals()
+        getReferrals(),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://medilab-pro.onrender.com"}/setup/staff`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("medilab_access_token")}` }
+        }).then(r => r.ok ? r.json() : [])
       ]);
       setPatients(patientList);
       setReferrals(referralList);
+      if (Array.isArray(staffRes)) setCollectionAgents(staffRes.map((s: any) => s.name));
       setRegisteredOn(new Date().toISOString().slice(0, 16));
     } catch (err: any) {
       console.error(err);
@@ -1024,8 +1028,10 @@ export default function NewBillPage() {
                   onChange={(e) => setCollectionAgent(e.target.value)}
                   className="px-3 w-full h-10 rounded-xl border border-slate-200 bg-transparent text-xs focus:outline-none focus:border-[#00A770]"
                 >
-                  {collectionAgents.map(agent => (
-                    <option key={agent} value={agent}>Agent {agent}</option>
+                  {collectionAgents.length === 0
+                    ? <option value="">No staff available</option>
+                    : collectionAgents.map(agent => (
+                    <option key={agent} value={agent}>{agent}</option>
                   ))}
                 </select>
                 <div className="flex space-x-2 mt-1.5 text-[9px] text-slate-400 font-bold uppercase tracking-wide">

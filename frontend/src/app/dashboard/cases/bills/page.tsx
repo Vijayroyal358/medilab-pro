@@ -68,6 +68,7 @@ export default function AllBillsPage() {
   const [collectionAgent, setCollectionAgent] = useState(""); // Filter by collection agent
   const [hasDue, setHasDue] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [staffList, setStaffList] = useState<{id: number; name: string; role: string}[]>([]);
 
   // Grouped Bills
   const [bills, setBills] = useState<BillGroup[]>([]);
@@ -75,9 +76,15 @@ export default function AllBillsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getTests();
+      const [data, staffRes] = await Promise.all([
+        getTests(),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://medilab-pro.onrender.com"}/setup/staff`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("medilab_access_token")}` }
+        }).then(r => r.ok ? r.json() : [])
+      ]);
       setTests(data);
       groupTestsIntoBills(data);
+      setStaffList(Array.isArray(staffRes) ? staffRes : []);
     } catch (err: any) {
       console.error(err);
       setError("Failed to fetch bill invoices.");
@@ -373,9 +380,7 @@ export default function AllBillsPage() {
               className="px-3 w-full h-10 rounded-lg border border-borders dark:border-darkBorders bg-transparent text-xs focus:outline-none"
             >
               <option value="">All agents</option>
-              <option value="Reddy">Agent Reddy</option>
-              <option value="Smith">Agent Smith</option>
-              <option value="Self">Self Collected</option>
+              {staffList.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
 
@@ -641,9 +646,8 @@ export default function AllBillsPage() {
                   onChange={(e) => setEditAgent(e.target.value)}
                   className="px-3 w-full h-10 rounded-lg border border-borders dark:border-darkBorders bg-transparent text-xs focus:outline-none"
                 >
-                  <option value="Reddy">Agent Reddy</option>
-                  <option value="Smith">Agent Smith</option>
-                  <option value="Self">Self Collected</option>
+                  <option value="">Select agent</option>
+                  {staffList.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </div>
             </div>
