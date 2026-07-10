@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [labName, setLabName] = useState("");
   const [labChecked, setLabChecked] = useState(false);
   const [labError, setLabError] = useState("");
+  const [isSoftwareAdmin, setIsSoftwareAdmin] = useState(false);
 
   // Email tab
   const [email, setEmail] = useState("");
@@ -96,7 +97,7 @@ export default function LoginPage() {
   const loginEmail = async () => {
     setLoading(true); setError("");
     try {
-      const slug = email === "superadmin@medilab.pro" ? "" : labSlug;
+      const slug = isSoftwareAdmin ? "" : labSlug;
       const res = await fetch(`${API}/auth/login?lab_slug=${slug}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -185,12 +186,21 @@ export default function LoginPage() {
                 value={labSlug}
                 onChange={e => setLabSlug(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && verifySlug(labSlug)}
-                placeholder="e.g. central-lab or superadmin"
+                placeholder="e.g. central-lab"
                 style={inp}
                 autoFocus
               />
               {labError && <p style={{ color: "#ef4444", fontSize: 12, margin: "6px 0 0" }}>{labError}</p>}
               <button onClick={() => verifySlug(labSlug)} style={{ ...btn, marginTop: "1rem" }}>Continue →</button>
+              <div style={{ textAlign: "center", marginTop: "1.25rem" }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>Are you a Software Admin? </span>
+                <button
+                  onClick={() => { setIsSoftwareAdmin(true); setLabChecked(true); setLabName("Software Admin Console"); }}
+                  style={{ background: "none", border: "none", color: "#10b981", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0 }}
+                >
+                  Login here →
+                </button>
+              </div>
             </div>
           ) : (
             <>
