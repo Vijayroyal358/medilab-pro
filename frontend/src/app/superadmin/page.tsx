@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, FlaskConical, Users, CreditCard, History, Settings,
@@ -35,9 +35,9 @@ export default function SuperAdminDashboard() {
   const [formMsg, setFormMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Dropdown (... menu)
+  // Dropdown (... menu) — position stored for fixed positioning (bypass overflow clipping)
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Search
   const [labSearch, setLabSearch] = useState("");
@@ -55,16 +55,18 @@ export default function SuperAdminDashboard() {
     fetchData(t);
   }, []);
 
-  // Close dropdown on outside click
+  // Close dropdown on any click outside the dropdown panel itself
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+    if (openDropdown === null) return;
+    const close = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-dropdown-panel]') && !target.closest('[data-dropdown-btn]')) {
         setOpenDropdown(null);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    document.addEventListener('click', close, true);
+    return () => document.removeEventListener('click', close, true);
+  }, [openDropdown]);
 
   const hdr = (t: string) => ({ Authorization: `Bearer ${t}`, "Content-Type": "application/json" });
 
@@ -316,7 +318,7 @@ export default function SuperAdminDashboard() {
                         <h2 className="text-base font-extrabold text-slate-800">Laboratories Overview</h2>
                         <button onClick={() => setActiveTab("labs")} className="text-xs font-bold text-[#00A770] flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></button>
                       </div>
-                      <LabTable labs={labs.slice(0, 5)} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
+                      <LabTable labs={labs.slice(0, 5)} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
                     </div>
                     {/* Staff preview */}
                     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
@@ -381,7 +383,7 @@ export default function SuperAdminDashboard() {
                       <p className="text-sm mt-1">Create your first lab using the button above.</p>
                     </div>
                   ) : (
-                    <LabTable labs={filteredLabs} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownRef={dropdownRef} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
+                    <LabTable labs={filteredLabs} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} dropdownPos={dropdownPos} setDropdownPos={setDropdownPos} onToggle={toggleLabActive} onPlan={updateLabPlan} plans={PLANS} onDelete={deleteLab} />
                   )}
                 </div>
               )}
@@ -598,10 +600,9 @@ export default function SuperAdminDashboard() {
 
 // ── Shared Table Components ────────────────────────────────────────────────────
 
-function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, onPlan, plans, onDelete }: any) {
+function LabTable({ labs, openDropdown, setOpenDropdown, dropdownPos, setDropdownPos, onToggle, onPlan, plans, onDelete }: any) {
   return (
-    <div className="relative" ref={dropdownRef}>
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto">
       <table className="w-full text-left text-sm min-w-[700px]">
         <colgroup>
           <col style={{ width: "30%" }} />
@@ -641,44 +642,54 @@ function LabTable({ labs, openDropdown, setOpenDropdown, dropdownRef, onToggle, 
               <td className="px-6 py-4 text-center"><StatusBadge active={lab.is_active} /></td>
               <td className="px-6 py-4 text-center text-xs font-semibold text-slate-600">{lab.subscription_plan}</td>
               <td className="px-6 py-4 text-right">
-                <div className="relative inline-block text-left">
-                  <button
-                    onClick={() => { setOpenDropdown(openDropdown === lab.id ? null : lab.id); }}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                <button
+                  data-dropdown-btn="true"
+                  onClick={(e) => {
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    if (openDropdown === lab.id) {
+                      setOpenDropdown(null);
+                    } else {
+                      setDropdownPos({ x: rect.right, y: rect.bottom + 6 });
+                      setOpenDropdown(lab.id);
+                    }
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {openDropdown === lab.id && (
+                  <div
+                    data-dropdown-panel="true"
+                    style={{ position: "fixed", top: dropdownPos.y, right: `${window.innerWidth - dropdownPos.x}px`, zIndex: 9999 }}
+                    className="bg-white border border-slate-200 rounded-xl shadow-xl min-w-[190px] py-1 text-slate-700"
                   >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                  {openDropdown === lab.id && (
-                    <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-50 min-w-[180px] py-1 text-slate-700">
-                      <button
-                        onClick={() => onToggle(lab)}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
-                      >
-                        {lab.is_active ? <XCircle className="w-4 h-4 text-red-500" /> : <CheckCircle className="w-4 h-4 text-emerald-500" />}
-                        {lab.is_active ? "Deactivate" : "Activate"}
+                    <button
+                      onClick={() => { setOpenDropdown(null); onToggle(lab); }}
+                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      {lab.is_active ? <XCircle className="w-4 h-4 text-red-500" /> : <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                      {lab.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                    <button
+                      onClick={() => { setOpenDropdown(null); onDelete(lab); }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-b border-slate-100"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete Lab
+                    </button>
+                    <div className="px-4 pt-2 pb-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider">Change Plan</div>
+                    {plans.map((p: string) => (
+                      <button key={p} onClick={() => { setOpenDropdown(null); onPlan(lab, p); }} className={`w-full px-4 py-2 text-left text-xs hover:bg-slate-50 flex items-center justify-between ${lab.subscription_plan === p ? "text-[#00A770] font-bold" : "text-slate-600"}`}>
+                        <span>{p}</span>
+                        {lab.subscription_plan === p && <span className="w-1.5 h-1.5 rounded-full bg-[#00A770]" />}
                       </button>
-                      <button
-                        onClick={() => onDelete(lab)}
-                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-b border-slate-100 pb-2"
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete Lab
-                      </button>
-                      <div className="px-4 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider pt-2">Change Plan</div>
-                      {plans.map((p: string) => (
-                        <button key={p} onClick={() => onPlan(lab, p)} className={`w-full px-4 py-1.5 text-left text-xs hover:bg-slate-50 flex items-center justify-between ${lab.subscription_plan === p ? "text-[#00A770] font-bold" : "text-slate-600"}`}>
-                          <span>{p} Plan</span>
-                          {lab.subscription_plan === p && <span className="w-1.5 h-1.5 rounded-full bg-[#00A770]" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      </div>
     </div>
   );
 }
