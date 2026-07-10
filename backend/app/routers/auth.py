@@ -53,6 +53,7 @@ def login(
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
+            token_type="bearer",
             name=user.name,
             role=user.role,
             lab_id=0,
